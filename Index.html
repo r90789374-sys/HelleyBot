@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--blue:#2764d8;--purple:#7546cf;--ink:#25304a;--muted:#68738a}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#edf4ff,#f7f0ff);color:var(--ink)}
+header{margin:14px auto 10px;max-width:1180px;border-radius:24px;padding:20px;background:linear-gradient(120deg,#245bd0,#8249d4);color:white;display:flex;align-items:center;gap:22px;box-shadow:0 12px 28px #334c9130}
+.robot{width:108px;height:108px;border-radius:24px;background:#fff;display:grid;place-items:center;font-size:64px;flex-shrink:0}
+h1{margin:0 0 8px;font-size:clamp(22px,4vw,36px)}header p{margin:0;opacity:.9}
+.search{max-width:1180px;margin:12px auto 18px;padding:0 12px;display:flex;gap:8px}.search input{flex:1}
+input,textarea,button{font:inherit;border-radius:12px;border:1px solid #dce3f1;padding:12px;background:white;color:var(--ink)}button{border:0;background:var(--blue);color:white;font-weight:bold;cursor:pointer}.purple{background:var(--purple)}.danger{background:#bd354b}
+.wrap{max-width:1180px;margin:auto;padding:0 12px 28px;display:grid;grid-template-columns:220px 1fr;gap:16px}
+aside,.panel,.card{background:white;border-radius:18px;padding:16px;box-shadow:0 7px 22px #273b6810}
+aside button{width:100%;margin:5px 0;text-align:left}.navhint{color:var(--muted);font-size:13px;line-height:1.5;margin-top:18px}
+h2{margin:0 0 14px;color:#30416a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.card h3{margin:0 0 8px;overflow-wrap:anywhere}.card p{margin:6px 0;color:var(--muted);font-size:14px}.card a{display:inline-block;margin-top:10px;color:#fff;background:var(--purple);padding:9px 13px;border-radius:10px;text-decoration:none}
+.hidden{display:none!important}.field{display:grid;gap:6px;margin:9px 0}.field label{font-size:13px;color:var(--muted)}textarea{min-height:110px;resize:vertical}.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.profile-row{border:1px solid #e4e9f3;border-radius:14px;padding:12px;margin:10px 0}.status{font-size:13px;color:#23764b;margin:8px 0}.media-img{width:100%;height:145px;object-fit:cover;border-radius:12px;background:#eef2f8}
+footer{text-align:center;color:#71809c;padding:20px}
+@media(max-width:700px){header{margin:8px;border-radius:18px;padding:14px;gap:12px}.robot{width:72px;height:72px;font-size:42px}.wrap{grid-template-columns:1fr}.row{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="robot">🤖</div><div><h1 id="title">Funny Furry Friends</h1><p>Discover • Share • Enjoy</p></div></header>
+<div class="search"><input id="search" placeholder="Search profiles or enter Admin code" onkeydown="if(event.key==='Enter')searchNow()"><button onclick="searchNow()">Search</button></div>
+<div class="wrap">
+<aside>
+<button onclick="showSection('home')">🏠 Home</button>
+<button class="purple" onclick="showSection('media')">🖼️ Username & Media</button>
+<button class="purple" onclick="showSection('account')">📋 Account</button>
+<div class="navhint">Welcome! Browse profiles, share media and view account information.</div>
+</aside>
+<main>
+<section id="home" class="panel"><h2>Profiles</h2><div id="profiles" class="grid"></div></section>
+<section id="media" class="panel hidden"><h2>Username & Media</h2>
+<div class="field"><label>Your username</label><input id="mediaName" maxlength="80" placeholder="Enter username"></div>
+<div class="field"><label>Upload picture (max 2 MB)</label><input id="mediaFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></div>
+<button onclick="sendMedia()">Submit</button><div id="mediaStatus" class="status"></div><hr><div id="mediaList" class="grid"></div></section>
+<section id="account" class="panel hidden"><h2>Account</h2><div id="accountText" style="white-space:pre-wrap;line-height:1.6"></div></section>
+<section id="admin" class="panel hidden"><h2>Admin Settings</h2>
+<button class="danger" onclick="adminLogout()">Admin Logout</button>
+<div class="field"><label>Dashboard title</label><input id="adminTitle"></div>
+<h3>Account section text</h3><textarea id="adminAccount" placeholder="Write public Account information, links and details"></textarea>
+<h3>Add profiles (up to 10 at once)</h3><div id="bulk"></div><button onclick="saveAll()">Save all changes</button><div id="adminStatus" class="status"></div><h3>Saved profiles (Edit / Delete)</h3><div id="manage"></div>
+</section>
+</main>
+</div>
+<footer>Funny Furry Friends</footer>
+<script>
+let data={profiles:[],media:[],accountText:''},adminCode='';
+function showSection(id){['home','media','account','admin'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id));}
+function load(){google.script.run.withSuccessHandler(d=>{data=d||data;document.getElementById('title').textContent=data.title||'Funny Furry Friends';document.getElementById('adminTitle').value=data.title||'';document.getElementById('adminAccount').value=data.accountText||'';render();}).withFailureHandler(e=>alert(e.message)).getPublicData();}
+function render(){const q=(document.getElementById('search').value||'').toLowerCase();let ps=data.profiles.filter(p=>!q||[p.username,p.group,p.karma,p.age].join(' ').toLowerCase().includes(q));document.getElementById('profiles').innerHTML=ps.map(p=>`<article class="card">${p.imageUrl?`<img class="media-img" src="${attr(p.imageUrl)}" alt="Profile image">`:''}<h3>${esc(p.username||'Profile')}</h3><p>Karma: ${esc(p.karma)}</p><p>Account Age: ${esc(p.age)}</p><p>Group: ${esc(p.group)}</p><p>Expire Date: ${esc(p.expiry)}</p>${p.url?`<a target="_blank" rel="noopener" href="${attr(p.url)}">View Profile</a>`:''}</article>`).join('')||'<p>No profiles found.</p>';
+document.getElementById('mediaList').innerHTML=(data.media||[]).map(m=>`<article class="card"><img class="media-img" src="${attr(m.imageUrl)}" alt="Submitted image"><h3>${esc(m.username)}</h3></article>`).join('')||'<p>No submissions yet.</p>';
+document.getElementById('accountText').textContent=data.accountText||'No account information yet.';
+document.getElementById('manage').innerHTML=data.profiles.map((p,i)=>`<div class="profile-row"><b>${esc(p.username)}</b><br>${esc(p.url)}<div style="display:flex;gap:8px;margin-top:8px"><button class="purple" onclick="editProfile(${i})">Edit</button><button class="danger" onclick="removeProfile(${i})">Delete</button></div></div>`).join('');}
+function searchNow(){const v=document.getElementById('search').value.trim();if(v){google.script.run.withSuccessHandler(ok=>{if(ok){adminCode=v;document.getElementById('search').value='';buildBulk();showSection('admin');}else{showSection('home');render();}}).withFailureHandler(e=>alert(e.message)).verifyAdmin(v);}else{showSection('home');render();}}
+function adminLogout(){adminCode='';document.getElementById('search').value='';showSection('home');render();}
+function buildBulk(){document.getElementById('bulk').innerHTML=Array.from({length:10},(_,i)=>`<div class="profile-row"><b>Profile ${i+1}</b><div class="row"><input id="u${i}" placeholder="Username"><input id="url${i}" placeholder="Profile URL (https://)"><input id="k${i}" placeholder="Karma"><input id="age${i}" placeholder="Account Age"><input id="g${i}" placeholder="Group"><input id="e${i}" type="date" aria-label="Expire date"><input id="img${i}" placeholder="Image URL (optional)"></div></div>`).join('');}
+function saveAll(){let added=[];for(let i=0;i<10;i++){let p={username:val('u'+i),url:val('url'+i),karma:val('k'+i),age:val('age'+i),group:val('g'+i),expiry:val('e'+i),imageUrl:val('img'+i)};if(p.username||p.url)added.push(p);}const merged=data.profiles.concat(added);const payload={title:val('adminTitle'),accountText:val('adminAccount'),profiles:merged};google.script.run.withSuccessHandler(()=>{document.getElementById('adminStatus').textContent='Saved successfully';load();showSection('admin');}).withFailureHandler(e=>document.getElementById('adminStatus').textContent=e.message).saveDashboard(adminCode,payload);}
+function editProfile(i){const old=data.profiles[i];const p={username:prompt('Username',old.username||''),url:prompt('Profile URL',old.url||''),karma:prompt('Karma',old.karma||''),age:prompt('Account Age',old.age||''),group:prompt('Group',old.group||''),expiry:prompt('Expire date',old.expiry||''),imageUrl:prompt('Image URL',old.imageUrl||'')};if(p.username===null)return;const list=data.profiles.slice();list[i]=p;persistProfiles(list);}
+function removeProfile(i){if(!confirm('Delete this profile?'))return;let p=data.profiles.slice();p.splice(i,1);persistProfiles(p);}
+function persistProfiles(p){google.script.run.withSuccessHandler(()=>{load();document.getElementById('adminStatus').textContent='Changes saved';}).withFailureHandler(e=>alert(e.message)).saveDashboard(adminCode,{title:data.title,accountText:data.accountText,profiles:p});}
+function sendMedia(){let file=document.getElementById('mediaFile').files[0],name=val('mediaName');if(!name||!file){alert('Username ও ছবি দিন');return;}if(file.size>2*1024*1024){alert('ছবি ২ MB-এর মধ্যে হতে হবে');return;}let count=Number(localStorage.getItem('ff_media_count')||0);if(count>=3){alert('এই ব্রাউজার থেকে সর্বোচ্চ ৩টি জমা দেওয়া যাবে');return;}let r=new FileReader();r.onload=()=>google.script.run.withSuccessHandler(url=>google.script.run.withSuccessHandler(msg=>{localStorage.setItem('ff_media_count',String(count+1));document.getElementById('mediaStatus').textContent=msg;load();}).withFailureHandler(e=>alert(e.message)).submitMedia({username:name,imageUrl:url})).withFailureHandler(e=>alert(e.message)).uploadPublicImage(r.result,file.name);r.readAsDataURL(file);}
+function val(id){return document.getElementById(id).value.trim()}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function attr(s){return esc(s)}
+load();
+</script>
+</body>
+</html>
